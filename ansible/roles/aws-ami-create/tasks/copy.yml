@@ -1,0 +1,45 @@
+---
+- name: copy ami to other regions
+  ec2_ami_copy:
+    source_image_id: "{{ami['results'][0]['image_id']}}"
+    source_region: eu-west-2
+    region: "{{region}}"
+    name: "{{ami_prefix}}-{{ami_name}}-{{timestamp}}"
+    wait: "{{ami_wait}}"
+    tags:
+      Name: "{{ami_prefix}}-{{ami_name}}-{{timestamp}}"
+      OS: "Amazon Linux 2"
+      CreatedBy: "Ansible"
+  register: result
+
+- name: share ami with other accounts
+  execute_lambda:
+    region: "eu-west-2"
+    function_arn: "arn:aws:lambda:eu-west-2:**********:function:core-ami-share"
+    payload:
+      amiId: "{{result.image_id}}"
+      accountIds: "{{bc_aws_ami_accounts}}"
+      groupIds: "{{bc_aws_ami_groups}}"
+      region: "{{region}}"
+      tags:
+        Name: "{{ami_prefix}}-{{ami_name}}-{{timestamp}}"
+        OS: "Amazon Linux 2"
+        CreatedBy: "Ansible"
+    wait: no
+
+# NOTES
+# This does not work as the image is not in a ready state as the above task does not wait.
+# Waiting is not an option. Give the task to something else to complete, such as lambda.
+
+#- name: set permission and tags of copied ami
+#  ec2_ami:
+#    image_id: "{{ result.image_id }}"
+#    state: present
+#    profile: bc
+#    region: "{{region}}"
+#    launch_permissions:
+#      user_ids: ['**********']
+#    tags:
+#      Name: "bc-{{ami_name}}-{{timestamp}}"
+#      OS: "CentOS 7"
+#      CreatedBy: "Ansible"

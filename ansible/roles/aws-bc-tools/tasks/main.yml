@@ -1,0 +1,42 @@
+---
+- name: create directory
+  file:
+    path: /opt/bc
+    state: directory
+    owner: bradley
+    group: bradley
+  tags:
+    - bc-tools
+
+- name: deploy default ini
+  copy:
+    src: bc.ini
+    dest: /etc/bc.ini
+    owner: bradley
+    group: bradley
+  tags:
+    - bc-tools
+
+- include: ebs-mount-boot.yml
+  when: bc_ebs_mount_boot == True
+  tags:
+    - bc-tools
+    - systemd
+
+- include: eip-attach.yml
+  when: bc_eip_attach == True
+  tags:
+    - bc-tools
+    - systemd
+
+- include: ec2-r53-boot.yml
+  when: bc_ec2_r53_boot == True
+  tags:
+    - bc-tools
+    - systemd
+
+- include: repo-clone-boot.yml
+  when: bc_repo_clone_boot == True
+  tags:
+    - bc-tools
+    - systemd

@@ -1,0 +1,32 @@
+---
+- name: deploy python script
+  copy:
+    src: ec2-r53-boot/ec2-r53-boot.py
+    dest: /opt/bc/ec2-r53-boot.py
+    mode: 0755
+    owner: bradley
+    group: bradley
+  tags:
+    - bc-tools
+
+- name: deploy systemd service
+  copy:
+    src: ec2-r53-boot/bc-ec2-r53-boot.service
+    dest: /usr/lib/systemd/system/bc-ec2-r53-boot.service
+  notify: reload systemd
+  tags:
+    - bc-tools
+    - systemd
+
+- meta: flush_handlers
+  tags:
+    - bc-tools
+    - systemd
+
+- name: enable bc-ec2-r53-boot service
+  systemd:
+    name: bc-ec2-r53-boot
+    enabled: yes
+  tags:
+    - bc-tools
+    - systemd

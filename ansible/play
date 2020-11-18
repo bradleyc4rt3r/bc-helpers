@@ -1,0 +1,11 @@
+#!/bin/bash
+
+export BASE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+cd $BASE_DIR
+
+export PATH=/usr/local/bin:$PATH
+
+export PYTHONUNBUFFERED=1
+
+#ansible-playbook -i inventory/none --vault-password-file=~/.vault-ic -e "ansible_base=${PWD}" $*
+ansible-playbook --vault-password-file=~/.vault-ic -e "ansible_base=${PWD}" $*

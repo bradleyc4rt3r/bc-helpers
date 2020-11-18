@@ -1,0 +1,11 @@
+[Unit]
+Description=Repository Clone Boot script
+After=cloud-final.service
+After=bc-ebs-mount-boot.service
+
+[Service]
+ExecStart=/opt/bc/repo-clone-boot.py
+Type=oneshot
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,32 @@
+---
+- name: deploy python script
+  copy:
+    src: ebs-mount-boot/ebs-mount-boot.py
+    dest: /opt/bc/ebs-mount-boot.py
+    mode: 0755
+    owner: bradley
+    group: bradley
+  tags:
+    - bc-tools
+
+- name: deploy systemd service
+  copy:
+    src: ebs-mount-boot/bc-ebs-mount-boot.service
+    dest: /usr/lib/systemd/system/bc-ebs-mount-boot.service
+  notify: reload systemd
+  tags:
+    - bc-tools
+    - systemd
+
+- meta: flush_handlers
+  tags:
+    - bc-tools
+    - systemd
+
+- name: enable bc-ebs-mount-boot service
+  systemd:
+    name: bc-ebs-mount-boot
+    enabled: yes
+  tags:
+    - bc-tools
+    - systemd

@@ -1,0 +1,14 @@
+---
+- name: install jenkins repo
+  yum_repository:
+    baseurl: https://pkg.jenkins.io/redhat-stable
+    name: jenkins
+    description: Jenkins
+  tags: ['yum', 'jenkins']
+
+- name: add jenkins repo key
+  rpm_key:
+    state: present
+    key: https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+  tags: ['yum', 'jenkins']
+  

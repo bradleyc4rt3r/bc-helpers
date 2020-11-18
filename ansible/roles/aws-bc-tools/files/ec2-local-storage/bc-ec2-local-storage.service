@@ -1,0 +1,12 @@
+[Unit]
+Description=EC2 Route 53 Boot Script
+After=cloud-final.service
+
+[Service]
+User=bradley
+Group=bradley
+ExecStart=/opt/bc/ec2-r53-boot.py
+Type=oneshot
+
+[Install]
+WantedBy=multi-user.target
