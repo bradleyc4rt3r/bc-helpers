@@ -1,6 +1,6 @@
 ---
 #- include: delete.yml
-#  with_items: "{{aws_regions}} + ['eu-west-2']"
+#  with_items: "{{aws_regions}} + ['eu-west-1']"
 #  loop_control:
 #    loop_var: region
 
@@ -13,7 +13,7 @@
     instance_id: "{{item}}"
     wait: yes
     wait_timeout: 1800
-    region: eu-west-2
+    region: eu-west-1
     launch_permissions:
       user_ids: "{{bc_aws_ami_accounts}}"
       group_ids: "{{bc_aws_ami_groups}}"
