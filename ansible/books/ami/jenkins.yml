@@ -12,11 +12,11 @@
         ami_name: jenkins
     - name: set environment facts
       set_fact:
-        environment: &icenv
+        environment: &bcenv
           AWS_ACCESS_KEY: "{{ assumed_role.sts_creds.access_key }}"
           AWS_SECRET_KEY: "{{ assumed_role.sts_creds.secret_key }}"
           AWS_SECURITY_TOKEN: "{{ assumed_role.sts_creds.session_token }}"
-          AWS_DEFAULT_REGION: 'eu-west-2'
+          AWS_DEFAULT_REGION: 'eu-west-1'
 
 - hosts: localhost
   become: no

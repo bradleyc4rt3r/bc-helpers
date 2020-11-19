@@ -4,7 +4,7 @@
   pre_tasks:
     - name: fetch aws credentials
       sts_assume_role:
-        role_arn: "arn:aws:iam::328967259529:role/CoreAccessRole"
+        role_arn: "arn:aws:iam::*********:role/CoreAccessRole"
         role_session_name: "BuildSession"
       register: assumed_role
     - name: set ami name
@@ -30,13 +30,13 @@
   become: yes
   vars:
     ami: true
-    ic_ebs_mount_boot: True
-    ic_ec2_r53_boot: True
+    bc_ebs_mount_boot: True
+    bc_ec2_r53_boot: True
     on_instance_volume: False
     jenkins_home_path: '/mnt/jenkins'
   roles:
     - repo-jenkins
-    - aws-ic-tools
+    - aws-bc-tools
     - java
     - jenkins
     - { role: 'terraform', terraform_version: 0.12.26 }
