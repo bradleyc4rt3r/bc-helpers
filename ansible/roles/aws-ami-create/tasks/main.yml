@@ -1,0 +1,33 @@
+---
+#- include: delete.yml
+#  with_items: "{{aws_regions}} + ['eu-west-1']"
+#  loop_control:
+#    loop_var: region
+
+- name: set timestamp
+  set_fact:
+    timestamp: "{{ansible_date_time.iso8601_basic_short}}"
+
+- name: create ami
+  ec2_ami:
+    instance_id: "{{item}}"
+    wait: yes
+    wait_timeout: 1800
+    region: eu-west-1
+    launch_permissions:
+      user_ids: "{{bc_aws_ami_accounts}}"
+      group_ids: "{{bc_aws_ami_groups}}"
+    name: "{{ami_prefix}}-{{ami_name}}-{{timestamp}}"
+    tags:
+      Name: "{{ami_prefix}}-{{ami_name}}-{{timestamp}}"
+      OS: "Amazon Linux 2"
+      CreatedBy: "Ansible"
+  with_items: "{{ec2.instance_ids}}"
+  register: ami
+
+- debug: msg="{{ami}}"
+
+- include: copy.yml
+  with_items: "{{aws_regions}}"
+  loop_control:
+    loop_var: region

@@ -1,0 +1,102 @@
+---
+- name: install jenkins
+  yum:
+    name: jenkins
+    state: present
+    disable_gpg_check: yes
+  register: install_jenkins
+  tags: ['jenkins', 'yum']
+
+- name: create jenkins user
+  user:
+    name: jenkins
+    shell: /bin/bash
+  tags: ['jenkins','user']
+
+- name: update jenkins
+  yum:
+    name: jenkins
+    state: latest
+  tags: ['jenkins','yum']
+  notify: restart jenkins
+  when: install_jenkins.changed == false
+
+- name: update jenkins path
+  when: on_instance_volume == False
+  user:
+    name: jenkins
+    shell: /bin/bash
+    home: {{jenkins_home_path}}
+  tags: ['jenkins','user']
+
+- name: deploy jenkins sysconfig
+  template:
+    src: jenkins
+    dest: /etc/sysconfig/jenkins
+  tags: ['prometheus']
+
+- name: enable jenkins
+  systemd:
+    name: jenkins
+    enabled: yes
+  tags: ['jenkins', 'service']
+
+- name: ensure jenkins_home_path exists
+  when: on_instance_volume == False
+  file:
+    path: "{{jenkins_home_path}}"
+    state: directory
+    owner: jenkins
+    group: jenkins
+  tags: ['jenkins']
+
+- name: start jenkins
+  when: on_instance_volume == True
+  systemd:
+    name: jenkins
+    state: started
+  tags: ['jenkins', 'service']
+
+- name: wait for default password to exist
+  when: on_instance_volume == True and install_jenkins.changed
+  wait_for:
+    path: "{{jenkins_home_path}}/secrets/initialAdminPassword"
+  tags: ['jenkins']
+
+- name: fetch default jenkins password
+  when: on_instance_volume == True
+  shell: cat "{{jenkins_home_path}}/secrets/initialAdminPassword"
+  register: jenkins_password
+  tags: ['jenkins']
+
+- name: output default jenkins password
+  when: on_instance_volume == True and install_jenkins.changed
+  debug:
+    msg: "Default Jenkins Password: {{ jenkins_password.stdout }}"
+  tags: ['jenkins']
+
+- name: remove default config.xml
+  when: on_instance_volume == True
+  file:
+    path: "{{jenkins_home_path}}/config.xml"
+    state: absent
+  tags: ['jenkins']
+
+- name: deploy custom config.xml
+  when: on_instance_volume == True
+  copy:
+    src: config.xml
+    dest: "{{jenkins_home_path}}"
+    mode: 0755
+  tags: ['jenkins']
+
+- name: Give self 15 executors
+  when: on_instance_volume == True
+  become: yes
+  lineinfile:
+    dest: "{{jenkins_home_path}}/config.xml"
+    regexp: "^(\\s*)<numExecutors>"
+    line: "\\1<numExecutors>15</numExecutors>"
+    backrefs: yes
+  register: master_executors
+  tags: ['jenkins']

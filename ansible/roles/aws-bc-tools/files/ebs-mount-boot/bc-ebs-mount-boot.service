@@ -1,0 +1,10 @@
+[Unit]
+Description=EBS Volume Mounter
+After=cloud-final.service
+
+[Service]
+ExecStart=/opt/bc/ebs-mount-boot.py
+Type=oneshot
+
+[Install]
+WantedBy=multi-user.target

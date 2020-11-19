@@ -1,0 +1,61 @@
+---
+- hosts: localhost
+  become: no
+  pre_tasks:
+    - name: fetch aws credentials
+      sts_assume_role:
+        role_arn: "arn:aws:iam::*********:role/CoreAccessRole"
+        role_session_name: "BuildSession"
+      register: assumed_role
+    - name: set ami name
+      set_fact:
+        ami_name: jenkins
+    - name: set environment facts
+      set_fact:
+        environment: &bcenv
+          AWS_ACCESS_KEY: "{{ assumed_role.sts_creds.access_key }}"
+          AWS_SECRET_KEY: "{{ assumed_role.sts_creds.secret_key }}"
+          AWS_SECURITY_TOKEN: "{{ assumed_role.sts_creds.session_token }}"
+          AWS_DEFAULT_REGION: 'eu-west-1'
+
+- hosts: localhost
+  become: no
+  environment:
+    <<: *bcenv
+  roles:
+    - aws-ami-find
+    - aws-ami-launch
+
+- hosts: dynamic
+  become: yes
+  vars:
+    ami: true
+    bc_ebs_mount_boot: True
+    bc_ec2_r53_boot: True
+    on_instance_volume: False
+    jenkins_home_path: '/mnt/jenkins'
+  roles:
+    - repo-jenkins
+    - aws-bc-tools
+    - java
+    - jenkins
+    - { role: 'terraform', terraform_version: 0.12.26 }
+    - ansible
+    - { role: 'packer', packer_version:  1.6.0 }
+    - environment
+    - aws-ami-remove-ec2-key
+
+- hosts: localhost
+  become: no
+  environment:
+    <<: *bcenv
+  roles:
+    - {
+        role: 'aws-ami-create',
+        aws_regions: ['eu-west-1'],
+        ami_wait: "no"
+      }
+    - {
+        role: 'aws-ami-terminate',
+        instance_ids: '{{ec2.instance_ids}}'
+      }

@@ -1,0 +1,4 @@
+---
+dependencies:
+  - { role: 'repo-jenkins', tags: 'always' }
+  - { role: 'java', tags: 'always' }

@@ -1,0 +1,16 @@
+---
+- name: find amis to delete
+  ec2_ami_facts:
+    region: "{{region}}"
+    profile: bc-core
+    filters:
+      name: "{{ami_prefix}}-{{ami_name}}-*"
+  register: found_amis
+
+- name: delete amis
+  ec2_ami:
+    profile: bc-core
+    region: "{{region}}"
+    image_id: "{{item.image_id}}"
+    state: absent
+  with_items: "{{found_amis['images']}}"

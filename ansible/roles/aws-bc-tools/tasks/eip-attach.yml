@@ -1,0 +1,32 @@
+---
+- name: deploy python script
+  copy:
+    src: eip-attach/eip-attach.py
+    dest: /opt/bc/eip-attach.py
+    mode: 0755
+    owner: bradley
+    group: bradley
+  tags:
+    - bc-tools
+
+- name: deploy systemd service
+  copy:
+    src: eip-attach/bc-eip-attach.service
+    dest: /usr/lib/systemd/system/bc-eip-attach.service
+  notify: reload systemd
+  tags:
+    - bc-tools
+    - systemd
+
+- meta: flush_handlers
+  tags:
+    - bc-tools
+    - systemd
+
+- name: enable service
+  systemd:
+    name: bc-eip-attach
+    enabled: yes
+  tags:
+    - bc-tools
+    - systemd

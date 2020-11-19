@@ -1,0 +1,5 @@
+---
+bc_ebs_mount_boot: False
+bc_ec2_r53_boot: False
+bc_eip_attach: False
+bc_repo_clone_boot: False

@@ -1,0 +1,12 @@
+[Unit]
+Description=Elastic IP Address Service
+After=cloud-final.service
+
+[Service]
+User=bradley
+Group=bradley
+ExecStart=/opt/bc/eip-attach.py
+Type=oneshot
+
+[Install]
+WantedBy=multi-user.target

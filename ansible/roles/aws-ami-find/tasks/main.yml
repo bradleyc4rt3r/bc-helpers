@@ -1,0 +1,20 @@
+---
+- name: search for base amis
+  ec2_ami_facts:
+    region: eu-west-2
+    owners: "{{ami_owner}}"
+    filters:
+      name: "{{ami_name_filter}}"
+  register: amis
+
+- name: sort found base amis
+  set_fact:
+    sorted_amis: "{{ amis.images | sort(attribute='creation_date') }}"
+
+- name: get latest ami
+  set_fact:
+    image: "{{ sorted_amis | last }}"
+
+- name: set image_id
+  set_fact:
+    image_id: "{{ image.image_id }}"

@@ -1,0 +1,5 @@
+---
+- name: remove authorized_keys
+  file:
+    path: /home/ec2-user/.ssh/authorized_keys
+    state: absent
