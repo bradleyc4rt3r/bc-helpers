@@ -66,7 +66,7 @@ try:
             role = tag["Value"]
 
         if tag["Key" == "IC-Meta"]:
-            print('Imagicloud metadata tag found.')
+            print('BC metadata tag found.')
             meta = json.loads(tag["Value"])
 
             if meta['ebs-mount-point']:
