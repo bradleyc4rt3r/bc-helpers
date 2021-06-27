@@ -5,7 +5,6 @@ set -e
 
 DATE=$(echo `date`)
 REGION=eu-west-2
-TG_ARN=arn:aws:elasticloadbalancing:eu-west-2:948686707161:targetgroup/core-sudjsoc-tg/78032aef615eb413
 
 
 instance_id(){
