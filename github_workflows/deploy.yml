@@ -1,0 +1,57 @@
+name: "Deploy EKS Jenkins"
+
+on:
+  workflow_dispatch:
+    inputs:
+      workspace:
+        description: "Select Workspace dev/uat/prd"
+        default: ""
+        required: true
+      cluster:
+        description: "Select EKS Cluster to install jenkins into"
+        default: ""
+        required: true
+      region:
+        description: "Select the region to install jenkins into e.g. us-east-1"
+        default: ""
+        required: true
+
+jobs:
+  terraform:
+    name: "Deploy EKS Jenkins"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_version: 0.15.3
+
+      - name: Build Helm variable files - AWS & SSH
+        env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+        run: |
+          chmod +x .github/workflows/files/*.gpg
+          chmod +x .github/workflows/scripts/jenkins-credentials.sh
+          .github/workflows/scripts/jenkins-credentials.sh
+
+      - name: Terraform - Deploy Base & EKS Infras
+        run: |
+          echo "deploying terraform" &&
+          cd eks-jenkins/terraform/base-infra && bash terraform.sh ${{ github.event.inputs.workspace }} apply &&
+          cd ../app-infra && bash terraform.sh ${{ github.event.inputs.workspace }} apply
+
+      - name: Helm - Deploy Jenkins & Deploy EFS CSI Controller
+        env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+        run: |
+          chmod +x .github/workflows/scripts/install.sh &&
+          .github/workflows/scripts/install.sh efs-csi-controller ${{ github.event.inputs.cluster }} ${{ github.event.inputs.workspace }} ${{ github.event.inputs.region }} &&
+          .github/workflows/scripts/install.sh jenkins ${{ github.event.inputs.cluster }} ${{ github.event.inputs.workspace }} ${{ github.event.inputs.region }}

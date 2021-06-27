@@ -1,0 +1,51 @@
+name: "Destroy EKS Jenkins"
+
+on:
+  workflow_dispatch:
+    inputs:
+      workspace:
+        description: "Select Workspace dev/uat/prd"
+        default: ""
+        required: true
+      cluster:
+        description: "Select EKS Cluster to destroy e.g.""
+        default: ""
+        required: true
+      region:
+        description: "Select the region that the cluster is in"
+        default: ""
+        required: true
+
+jobs:
+  terraform:
+    name: "Destroy EKS Jenkins"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_version: 0.15.3
+
+      - name: Helm - Uninstall Jenkins & Deploy EFS CSI Controller
+        env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+        run: |
+          chmod +x .github/workflows/scripts/uninstall.sh &&
+          .github/workflows/scripts/uninstall.sh jenkins ${{ github.event.inputs.cluster }} ${{ github.event.inputs.workspace }} ${{ github.event.inputs.region }} &&
+          .github/workflows/scripts/uninstall.sh efs-csi-controller ${{ github.event.inputs.cluster }} ${{ github.event.inputs.workspace }} ${{ github.event.inputs.region }}
+
+      - name: Terraform - Destroy EKS & Base Infras
+        env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+        run: |
+          echo "destroying terraform" &&
+          cd eks-jenkins/terraform/app-infra && bash terraform_destroy.sh ${{ github.event.inputs.workspace }} &&
+          cd ../base-infra && bash terraform.sh ${{ github.event.inputs.workspace }} destroy

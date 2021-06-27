@@ -1,0 +1,34 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ .Values.nameOverride }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    kubernetes.io/ingress.class: "alb"
+    alb.ingress.kubernetes.io/scheme: internet-facing #internal
+    alb.ingress.kubernetes.io/target-type: instance
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
+    alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
+    alb.ingress.kubernetes.io/actions.jenkins: >
+      {"type":"forward","forwardConfig":{"targetGroups":[{"serviceName":"jenkins","servicePort":"8080"}]}}
+  labels:
+    app: {{ .Values.nameOverride }}
+spec:
+  tls:
+  - hosts:
+    - "*.dev.ops.sasyadev.com"
+    - "*.prd.ops.sasyadev.com"
+    - "*.ops.sasyadev.com"
+    - "ops.sasyadev.com"
+  rules:
+  - http:
+      paths:
+      - path: /*
+        backend:
+          serviceName: ssl-redirect
+          servicePort: use-annotation
+      - path: /*
+        backend:
+          serviceName: jenkins
+          servicePort: 8080

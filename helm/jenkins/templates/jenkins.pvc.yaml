@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.volumes.mounts.jenkins_home.persistentVolumeClaim.efs.name }}
+  namespace: {{ .Release.namespace }}
+spec:
+  accessModes: {{ .Values.volumes.mounts.jenkins_home.accessModes }}
+  storageClassName: {{ .Values.volumes.mounts.jenkins_home.storageClassName }}
+  resources:
+    requests:
+      storage: {{ .Values.volumes.mounts.jenkins_home.persistentVolumeClaim.efs.resources.requests.storage }}

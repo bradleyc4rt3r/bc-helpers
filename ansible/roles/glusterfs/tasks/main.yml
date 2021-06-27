@@ -1,0 +1,41 @@
+---
+- name: Set group IPs
+  run_once: true
+  set_fact:
+    node_ips: "{{ groups['gluster'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']) | list }}"
+
+- debug:
+    var: node_ips
+
+- name: Ensure GlusterFS nodes are available
+  wait_for:
+    port: 24007
+    timeout: 24007
+    sleep: 5
+    delay: 1
+
+- name: Ensure GlusterFS nodes are connected
+  gluster.gluster.gluster_peer:
+    nodes: "{{ node_ips }}"
+  run_once: true
+
+- name: Ensure GlusterFS volume directory exists
+  file:
+    path: "{{ glusterfs_volume_path }}"
+    state: 'directory'
+  ignore_errors: yes
+
+- name: Create GlusterFS volume
+  run_once: true
+  gluster.gluster.gluster_volume:
+    state: 'present'
+    volume: "{{ glusterfs_volume_name }}"
+    bricks: "/gluster"
+    cluster: "{{ node_ips }}"
+    transport: 'tcp'
+    replicas: "{{ node_ips | length }}"
+    force: yes
+  register: volume
+
+- debug:
+    var: volume

@@ -1,0 +1,49 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+        "Effect": "Allow",
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams",
+          "logs:PutRetentionPolicy"
+      ],
+        "Resource": [
+          "arn:aws:logs:*:*:*"
+      ]
+    },
+
+        {
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetBucketLocation",
+        "s3:ListAllMyBuckets"
+      ],
+      "Resource": "*"
+      },
+    
+    {
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": [
+        "${artifactory-bucket-arn}"
+        ]
+    },
+    
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListObject"
+      ],
+      "Resource": [
+          "${artifactory-bucket-arn}",
+          "${artifactory-bucket-arn}/*"
+      ]
+    }
+  ]
+}

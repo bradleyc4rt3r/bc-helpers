@@ -1,0 +1,61 @@
+name: "1.Base Infra TF Plan"
+
+on:
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      workspace:
+        # Friendly description to be shown in the UI instead of 'name'
+        description: "Select Workspace dev/prd"
+        # Default value if no value is explicitly provided
+        default: ""
+        # Input has to be provided for the workflow to run
+        required: true
+
+jobs:
+  terraform:
+    name: "Base Infra Terraform Plan"
+    runs-on: ubuntu-latest
+
+    # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # Checkout the repository to the GitHub Actions runner
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_version: 0.15.3
+
+      # Checkout the #####-credentials repository to the Git runner
+      - name: Checkout credentials
+        uses: actions/checkout@v2
+        with:
+          repository: deliveryblueprints/#####-credentials
+          path: creds
+          ref: main
+          ssh-key: ${{ secrets.GH_SSH }}
+          ssh-strict: false
+
+      # Decrypt credentials for git runner
+      - name: Decrypt AWS Credentials
+        env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+        run: |
+          echo "decrypting AWS credentials.."
+          mkdir -p $HOME/.aws
+          gpg --quiet --batch --yes --decrypt \
+              --passphrase="$GPG_KEY" \
+              --output $HOME/.aws/credentials \
+          creds/aws_credentials.gpg
+
+      # Terraform Plan
+      - name: Terraform Plan
+        run: cd eks-jenkins/terraform/base-infra && bash terraform.sh ${{ github.event.inputs.workspace }} plan

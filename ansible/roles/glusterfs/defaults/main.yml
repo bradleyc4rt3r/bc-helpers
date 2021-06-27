@@ -1,0 +1,14 @@
+---
+glusterfs_iface: 'ens5'
+glusterfs_group: 'glusterfs_servers'
+glusterfs_brick_path: '/gluster'
+glusterfs_volume_name: '##########'
+glusterfs_volume_path: "{{ glusterfs_brick_path }}/{{ glusterfs_volume_name }}"
+
+glusterfs_arbiters: 0
+
+glusterfs_device: /dev/nvme1n1
+glusterfs_fstype: 'xfs'
+glusterfs_mountpoint: "{{ glusterfs_brick_path }}"
+
+glusterfs_volume_mount: '/opt/##########'

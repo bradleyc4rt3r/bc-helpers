@@ -1,0 +1,112 @@
+#!groovy
+
+pipeline {
+  agent { label 'jenkins-slave' }
+
+  environment {
+    REGION = 'us-east-1'
+    APP_REPO_URL = ''
+    CRED_REPO_URL = ''
+    BG_SERVICES_REPO_URL = ''
+  }
+
+  parameters {
+    choice name: 'ACTION', choices: ['install', 'upgrade', 'rollback', 'uninstall'], description: 'Helm action'
+    choice name: 'ENV', choices: ['dev', 'trk', 'trn'], description: 'Choose a platform/namespace to deploy to'
+    choice(name: 'BRANCH', choices: ['develop', 'main'], description: 'Select branch to deploy from')
+    choice(name: 'APP', choices: ['gluster', 'mongodb', 'kafka', 'memcached', 'rabbitmq', 'zookeeper'])
+    gitParameter branch: '${BRANCH}',
+                 name: 'TAG', 
+                 branchFilter: '.*', 
+                 defaultValue: 'latest', 
+                 description: 'Select an image tag to deploy', 
+                 listSize: '10',
+                 quickFilterEnabled: false, 
+                 selectedValue: 'TOP', 
+                 sortMode: 'DESCENDING_SMART', 
+                 tagFilter: 'v[0-9]*', 
+                 type: 'PT_TAG'
+  }
+
+  options {
+      disableConcurrentBuilds()
+      skipDefaultCheckout()
+      skipStagesAfterUnstable()
+      timestamps()
+      ansiColor('xterm')
+  }
+
+  stages {
+    stage('Clean Workspace') {
+        steps {
+            cleanWs()
+        }
+    }
+
+    stage('Clone Credential') {
+      steps {
+        dir('credential') {
+          deleteDir()
+          git branch: 'main',
+              credentialsId: 'github-ssh-key-credential',
+              url: "${env.CRED_REPO_URL}"
+        }
+      }
+    }
+
+    stage('Decrypt-AWS-Creds') {
+      steps {
+        withCredentials([string(credentialsId: 'gpg-key', variable: 'GPG_KEY')]) {
+          sh '''
+            echo "Decrypting AWS credentials.."
+            mkdir -p ${HOME}/.aws
+            gpg --quiet --batch --yes --decrypt \
+                --passphrase="${GPG_KEY}" \
+                --output ${HOME}/.aws/config \
+                ./credential/aws_config.gpg
+            '''
+        }
+      }
+    }
+
+    stage('Clone App') {
+      steps {
+        dir('helm') {
+          deleteDir()
+          git branch: "${params.BRANCH}",
+              credentialsId: 'github-ssh-key-credential',
+              url: "${env.APP_REPO_URL}"
+        }
+      }
+    }
+
+    stage('Clone Background Services') {
+      steps {
+        dir('background-services') {
+          deleteDir()
+          git branch: "develop",
+              credentialsId: 'gitlab-ssh-key-credential',
+              url: "${env.BG_SERVICES_REPO_URL}"
+        }
+      }
+    }
+
+    stage('Helm') {
+      when {
+        // beforeAgent true
+        anyOf {
+          expression {
+            input message: "are you sure you want to ${params.ACTION} ${params.APP}?"
+            return true
+          }
+        }
+      }
+      steps {
+        script {
+          currentBuild.description = "${params.ACTION} ${params.APP} ${params.TAG} ${params.ENV}"
+          sh "bash background-services/helm/tools/helm.sh ${env.REGION} ${params.ENV} ${params.ACTION} ${params.APP} ${params.TAG}"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,80 @@
+---
+- name: Register mariadb secrets
+  shell: |
+    aws secretsmanager get-secret-value \
+      --profile {{profile}} \
+      --region {{region}} \
+      --secret-id {{profile}}-va-rds-mariadb-credentials-v1 \
+  register: mariadb_creds
+
+- set_fact:
+    mariadb_creds_dict: "{{ mariadb_creds.stdout | from_json | json_query('SecretString')  }}"
+
+- set_fact:
+    mariadb_pass: "{{ mariadb_creds_dict.password }}"
+
+- set_fact:
+    mariadb_user: "{{ mariadb_creds_dict.username }}"
+
+- name: Override existing credentials to fetch ##########test2 sql backup
+  shell: |
+    export AWS_ACCESS_KEY_ID={{sasyadev_aws_access_key}} && \
+    export AWS_SECRET_ACCESS_KEY={{sasyadev_aws_secret_key}} && \
+    aws s3 cp --region {{region}} s3://{{bucket}}/{{file}} ./{{file}} && \
+    unset AWS_REGION AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+
+- name: Register mariadb endpoint
+  shell: |
+    aws rds describe-db-instances \
+        --profile {{profile}} \
+        --region {{region}} \
+        --db-instance-identifier {{profile}}-va-rds-mariadb \
+        --query DBInstances[0].Endpoint.Address | sed 's/"//g'
+  register: mariadb_endpoint
+
+- debug:
+    var: mariadb_endpoint.stdout
+
+- name: Wait for port 3306 to become open on the host
+  wait_for:
+    host: "{{mariadb_endpoint.stdout}}"
+    port: 3306
+    timeout: 120
+    sleep: 5
+    delay: 1
+
+- name: Create ##########connect user
+  mysql_user:                                 #source
+    login_host: "{{mariadb_endpoint.stdout}}" #API
+    login_user: "{{mariadb_user}}"            #API
+    login_password: "{{mariadb_pass}}"        #API
+    host: '%'                               
+    name: ##########connect
+    password: "{{##########connect_pass}}"           #Defaults/
+    priv: "{{mariadb_priv_rwx}}"              #Defaults/
+    state: present
+
+- name: Unzip backup
+  shell: gunzip {{file}}
+
+- name: Remove DEFINERS from backup to force all procedures to be created by the user "admin"
+  shell: cat {{file[:-3]}} | sed -e 's/DEFINER[ ]*=[ ]*[^*]*\*/\*/' | sed -e 's/DEFINER[ ]*=[ ]*[^*]*PROCEDURE/PROCEDURE/' | sed -e 's/DEFINER[ ]*=[ ]*[^*]*FUNCTION/FUNCTION/' > ./backup.sql
+  register: remove_definers
+
+- debug:
+    var: remove_definers
+
+- name: Execute ##########test2 upgrade
+  shell: |
+    mysql -u{{mariadb_user}} -p'{{mariadb_pass}}' -h {{mariadb_endpoint.stdout}} -f < backup.sql
+  async: 10800
+  poll: 30
+  register: database_upgrade
+
+- name: Database upgrade output
+  debug:
+   var: database_upgrade
+
+- name: Clear license data
+  shell: "mysql -u{{mariadb_user}} -p'{{mariadb_pass}}' -h {{mariadb_endpoint.stdout}} -e 'truncate license.ip_address; truncate license.client_hostnames'"
+  tags: ['licence']

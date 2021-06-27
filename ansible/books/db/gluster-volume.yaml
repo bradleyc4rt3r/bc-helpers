@@ -1,0 +1,14 @@
+---
+- hosts: localhost
+  become: no
+  vars:
+    dgroup: gluster
+    drole: gluster
+  roles:
+    - { role: 'dynamic-inventory', dregion: 'us-east-1', denvironment: 'dev'}
+
+- hosts: gluster
+  become: yes
+  gather_facts: true
+  roles:
+    - glusterfs

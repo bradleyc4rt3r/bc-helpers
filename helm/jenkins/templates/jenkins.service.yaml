@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name:  {{ .Values.nameOverride }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    alb.ingress.kubernetes.io/healthcheck-path: /login #{{ .Values.ingress.annotations.alb.healthCheckPath }}
+    alb.ingress.kubernetes.io/healthcheck-port: "30001"
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '15'
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '20'
+    alb.ingress.kubernetes.io/success-codes: 200,302
+  labels:
+    app: {{ .Values.nameOverride }}
+spec:
+  type: {{ .Values.ports.http.typeNp }} #NodePort
+  selector:
+    app: {{ .Values.nameOverride }} #jenkins
+  ports:
+    - port: {{ .Values.ports.http.port }} #8080
+      targetPort: {{ .Values.ports.http.port }} #8080
+      nodePort: {{ .Values.ports.http.nodePort }} #30001
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.ports.jnlp.name }} #jenkins-jnlp
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: {{ .Values.ports.jnlp.type }}
+  ports:
+    - port: {{ .Values.ports.jnlp.port }}
+      targetPort: {{ .Values.ports.jnlp.port }}
+  selector:
+    app: {{ .Values.nameOverride }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.ports.http.name }} #jenkins-http
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: {{ .Values.ports.http.typeCip }}
+  ports:
+    - port: {{ .Values.ports.http.webPort }}
+      targetPort: {{ .Values.ports.jnlp.port }}
+  selector:
+    app: {{ .Values.nameOverride }}

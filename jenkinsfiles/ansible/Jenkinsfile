@@ -1,0 +1,125 @@
+#!groovy
+
+pipeline {
+    agent { label 'jenkins-slave' }
+
+    environment {
+        APP_REPO_URL = ''
+        CRED_REPO_URL = ''
+        APP_BRANCH = "${BRANCH_TAG}"
+    }
+
+    parameters {
+        choice(name: 'ENV_NAME', choices: ['dev', 'trk', 'trn', 'gbl'], description: 'Select Environment')
+        choice(name: 'PLAY', choices: ['ansible-play-name-example'], description: 'Select playbook to run')
+    }
+
+    options {
+        skipDefaultCheckout()
+        disableConcurrentBuilds()
+        skipStagesAfterUnstable()
+        timestamps()
+        ansiColor('xterm')
+    }
+
+    stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Clone Credential') {
+            steps {
+                dir('credential') {
+                    deleteDir()
+                    git branch: 'main',
+                        credentialsId: 'github-ssh-key-credential',
+                        url: "${env.CRED_REPO_URL}"
+                }
+            }
+        }
+
+        stage('Decrypt-AWS-Creds') {
+            steps {
+                withCredentials([string(credentialsId: 'gpg-key', variable: 'GPG_KEY')]) {
+                    sh '''
+                    echo "Decrypting AWS credentials.."
+                    mkdir -p ${HOME}/.aws
+                    gpg --quiet --batch --yes --decrypt \
+                        --passphrase="${GPG_KEY}" \
+                        --output ${HOME}/.aws/config \
+                        ./credential/aws_config.gpg
+                    gpg --quiet --batch --yes --decrypt \
+                        --passphrase="${GPG_KEY}" \
+                        --output ${HOME}/.aws/credentials \
+                        ./credential/aws_credentials.gpg
+                    '''
+                }
+            }
+        }
+
+        stage('Decrypt-SSH-Creds') {
+            steps {
+                withCredentials([string(credentialsId: 'gpg-key', variable: 'GPG_KEY')]) {
+                    sh '''
+                    echo "Decrypting SSH credentials.."
+                    mkdir -p ${HOME}/.ssh
+                    gpg --quiet --batch --yes --decrypt \
+                        --passphrase="${GPG_KEY}" \
+                        --output ${HOME}/.ssh/config \
+                        ./credential/ssh_config.gpg
+                    gpg --quiet --batch --yes --decrypt \
+                        --passphrase="${GPG_KEY}" \
+                        --output ${HOME}/.ssh/########## \
+                        ./credential/#################.gpg
+                    gpg --quiet --batch --yes --decrypt \
+                        --passphrase="${GPG_KEY}" \
+                        --output ${HOME}/.ssh/################ \
+                        ./credential/##################.gpg
+                    chmod 0600 ${HOME}/.ssh/############## | true
+                    chmod 0600 ${HOME}/.ssh/############## | true
+                    '''
+                }
+            }
+        }
+
+        stage('Clone App') {
+            steps {
+                dir("app") {
+                    deleteDir()
+                    git branch: "develop",
+                        credentialsId: 'github-ssh-key-credential',
+                        url: "${env.APP_REPO_URL}"
+                }
+            }
+        }
+
+        stage('Deploy Ansible Vault') {
+            environment { VAULT_KEY = credentials('ansible-vault') }
+            steps {
+                sh '''
+                cp ${VAULT_KEY} ${HOME}/.vault-eks
+                '''
+            }
+        }
+
+        stage('Run Ansible') {
+            steps {
+                sh '''
+                cd app/eks-##########/ansible/
+                ./play books/${PLAY}.yaml \
+                    --extra-vars "#############=###########" \
+                    --key-file ${HOME}/.ssh/#################### \
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            deleteDir()
+        }
+    }
+}
+

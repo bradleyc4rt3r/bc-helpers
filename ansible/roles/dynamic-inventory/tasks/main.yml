@@ -1,0 +1,30 @@
+---
+- ec2_instance_facts:
+    region: '{{dregion}}'
+    profile: '{{dprofile}}'
+    filters:
+      key-name: "{{dkey|default(omit)}}"
+      vpc-id: "{{dvpc|default(omit)}}"
+      instance-id: "{{dinstanceid|default(omit)}}"
+      "tag:Name": "{{dname|default(omit)}}"
+      "tag:environment": "{{denvironment|default(omit)}}"
+      "tag:role": "{{drole|default(omit)}}"
+      "tag:groups": "{{dgroup|default(omit)}}"
+      instance-state-name: 'running'
+  register: hosts
+  tags: ['always']
+
+- name: Set host facts
+  set_fact: 
+    inventory_hosts: []
+  tags: ['always']
+
+- debug: msg="{{item}}"
+  with_items: "{{hosts['instances']}}"
+  tags: ['always']
+
+- add_host:
+    hostname: "{{item['private_ip_address']}}"
+    groupname: "{{dgroup}}"
+  with_items: "{{hosts['instances']}}"
+  tags: ['always']

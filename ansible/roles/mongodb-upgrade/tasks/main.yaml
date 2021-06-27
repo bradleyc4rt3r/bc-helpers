@@ -1,0 +1,44 @@
+---
+- name: Register mongodb endpoint
+  shell: |
+    aws ec2 describe-instances \
+        --profile {{profile}}  \
+        --region {{region}}    \
+        --filters "Name=tag:Name,Values={{profile}}-va-ec2-mongodb" \
+        --query "Reservations[*].Instances[*].PrivateIpAddress" |
+        grep [0-9].* | 
+        sed 's/"//g' | 
+        sed 's/ //g'
+  register: mongodb_endpoint
+
+- debug:
+    var: mongodb_endpoint.stdout
+
+- name: Override existing credentials to fetch ##########test2 mongodb backup
+  shell: |
+    export AWS_ACCESS_KEY_ID={{sasyadev_aws_access_key}} && \
+    export AWS_SECRET_ACCESS_KEY={{sasyadev_aws_secret_key}} && \
+    aws s3 cp --region {{region}} s3://{{bucket}}/{{file}} ./{{file}} && \
+    unset AWS_REGION AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+
+- name: Wait for port 27017 to become open on the host
+  wait_for:
+    host: "{{mongodb_endpoint.stdout}}"
+    port: 27017
+    timeout: 120
+    sleep: 5
+    delay: 1
+
+- name: Unzip backup
+  shell: tar -xvzf ./{{file}}
+
+- name: Execute ##########test2 mongodb import
+  shell: |
+    mongorestore --host={{mongodb_endpoint.stdout}} --port=27017 ./{{file[:-7]}}/
+  async: 10800
+  poll: 30
+  register: database_upgrade
+
+- name: Database upgrade output
+  debug:
+   var: database_upgrade

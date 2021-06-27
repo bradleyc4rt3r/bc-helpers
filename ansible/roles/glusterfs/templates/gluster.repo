@@ -1,0 +1,7 @@
+# vi /etc/yum.repos.d/glusterfs.repo
+
+[gluster4]
+name = Gluster 4.1x
+baseurl = http://mirror.centos.org/centos/7/storage/x86_64/gluster-4.1/
+gpgcheck = 0
+enabled = 1

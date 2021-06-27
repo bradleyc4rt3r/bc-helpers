@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.nameOverride }}
+  labels:
+    app: {{ .Values.nameOverride }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.nameOverride }}
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: {{ .Values.strategy.type }}
+    rollingUpdate:
+      maxSurge: {{ .Values.strategy.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.strategy.rollingUpdate.maxUnavailable }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.nameOverride }}
+    spec:
+      serviceAccountName: {{ .Values.nameOverride }}
+      containers:
+      - name: {{ .Values.nameOverride }}
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/bash", "/configs/main/{{ .Values.envName }}/template.sh"]
+        image: "{{ .Values.jenkins.image.repository }}:{{ .Values.envName }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: JAVA_OPTS
+          value: {{ .Values.env.javaOpts }}
+        - name: GPG_KEY
+          value: {{ .Values.gpgKey | b64dec }}
+        ports:
+        - containerPort: {{ .Values.ports.http.port }}
+          protocol: {{ .Values.ports.http.protocol }}
+        - containerPort: {{ .Values.ports.jnlp.port }}
+          protocol: {{ .Values.ports.jnlp.protocol }}
+        - containerPort: {{ .Values.ports.http.nodePort }}
+          protocol: {{ .Values.ports.http.protocol }}
+        volumeMounts:
+        - mountPath: {{ .Values.volumes.mounts.jenkins_home.path }}
+          name: {{ .Values.nameOverride }}
+        - name: {{ .Values.volumes.mounts.ssh.config.name }}
+          mountPath: {{ .Values.volumes.mounts.ssh.config.mountPath }}
+          subPath: {{ .Values.volumes.mounts.ssh.config.subPath }} 
+          readOnly: {{ .Values.volumes.mounts.ssh.config.readOnly }}
+        - name: {{ .Values.volumes.mounts.ssh.keys.private.github.name }} 
+          mountPath: {{ .Values.volumes.mounts.ssh.keys.private.github.mountPath }} 
+          subPath: {{ .Values.volumes.mounts.ssh.keys.private.github.subPath }}  
+          readOnly: {{ .Values.volumes.mounts.ssh.keys.private.github.readOnly }}
+        - name: {{ .Values.volumes.mounts.ssh.keys.private.gitlab.name }} 
+          mountPath: {{ .Values.volumes.mounts.ssh.keys.private.gitlab.mountPath }} 
+          subPath: {{ .Values.volumes.mounts.ssh.keys.private.gitlab.subPath }}  
+          readOnly: {{ .Values.volumes.mounts.ssh.keys.private.gitlab.readOnly }}
+        - name: ssh-directory
+          mountPath: /root/.ssh
+          subPath: .ssh
+        resources:
+          limits:
+            memory: {{ .Values.resources.memory.limits }}
+            cpu: {{ .Values.resources.cpu.limits }}
+          requests:
+            memory: {{ .Values.resources.memory.requests }}
+            cpu: {{ .Values.resources.cpu.requests }}
+      restartPolicy: {{ .Values.restartPolicy }}
+      securityContext:
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      volumes:
+      - name: {{ .Values.nameOverride }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.volumes.mounts.jenkins_home.persistentVolumeClaim.efs.name }}
+      - name: {{ .Values.volumes.mounts.ssh.config.name }} 
+        secret:
+          secretName: {{ .Values.volumes.mounts.ssh.config.configMap.name }}
+          defaultMode: {{ .Values.volumes.mounts.ssh.config.configMap.mode }}
+      - name: {{ .Values.volumes.mounts.ssh.keys.private.github.name }}
+        secret:
+          secretName: {{ .Values.volumes.mounts.ssh.keys.private.github.name }}
+          defaultMode: {{ .Values.volumes.mounts.ssh.keys.private.github.secret.mode }}
+      - name: {{ .Values.volumes.mounts.ssh.keys.private.gitlab.name }}
+        secret:
+          secretName: {{ .Values.volumes.mounts.ssh.keys.private.gitlab.name }}
+          defaultMode: {{ .Values.volumes.mounts.ssh.keys.private.gitlab.secret.mode }}
+      - name: ssh-directory
+        emptyDir: {}

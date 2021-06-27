@@ -1,0 +1,59 @@
+name: "5.Jenkins Agent Image"
+
+on:
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      workspace:
+        # Friendly description to be shown in the UI instead of 'name'
+        description: "Select Workspace dev/prd"
+        # Default value if no value is explicitly provided
+        default: ""
+        # Input has to be provided for the workflow to run
+        required: true
+      region:
+        # Friendly description to be shown in the UI instead of 'name'
+        description: "Select the region the workspace is in e.g. us-east-1"
+        # Default value if no value is explicitly provided
+        default: "us-east-1"
+        # Input has to be provided for the workflow to run
+        required: true
+      tag:
+        # Friendly description to be shown in the UI instead of 'name'
+        description: "Enter an image tag - default=latest"
+        # Default value if no value is explicitly provided
+        default: "latest"
+        # Input has to be provided for the workflow to run
+        required: true
+
+jobs:
+  terraform:
+    name: "Jenkins Agent Image"
+    runs-on: ubuntu-latest
+
+    # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # Checkout the repository to the GitHub Actions runner
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # Checkout the #####-credentials repository to the Git runner
+      - name: Checkout credentials
+        uses: actions/checkout@v2
+        with:
+          repository: deliveryblueprints/#####-credentials
+          path: creds
+          ref: main
+          ssh-key: ${{ secrets.GH_SSH }}
+          ssh-strict: false
+
+      # Agent Image
+      - name: Agent Image
+        env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+        run: "chmod +x .github/workflows/scripts/jenkins-image.sh && \
+          .github/workflows/scripts/jenkins-image.sh ${{ github.event.inputs.workspace }} agent ${{ github.event.inputs.region }} ${{ github.event.inputs.tag }}"

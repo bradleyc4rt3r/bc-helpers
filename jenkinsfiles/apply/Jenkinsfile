@@ -1,0 +1,90 @@
+#!groovy
+
+/*
+ * Infra deployment
+ */
+
+pipeline {
+    agent { label 'jenkins-slave' }
+
+    environment {
+        APP_REPO_URL = ''
+        CRED_REPO_URL = ''
+        APP_BRANCH = "${BRANCH_TAG}"
+    }
+
+    parameters {
+        choice(name: 'ENV_NAME', choices: ['dev', 'trk', 'trn', 'gbl'], description: 'Select Environment')
+        choice(name: 'CHOICES', choices: ['plan', 'apply'], description: 'Always select plan before apply')
+        choice(name: 'INFRA', choices: ['base-infra', 'secret-infra', 'db-infra', 'app-infra', 'dns-infra'], description: 'Select infra to deploy')
+        gitParameter branchFilter: 'origin/(.*)', tagFilter: '*', defaultValue: 'develop', name: 'BRANCH_TAG', type: 'PT_BRANCH_TAG', quickFilterEnabled: 'true', useRepository: 'git@github.com:deliveryblueprints/terraform-starter-account.git'
+    }
+
+    options {
+        skipDefaultCheckout()
+        disableConcurrentBuilds()
+        skipStagesAfterUnstable()
+        timestamps()
+        ansiColor('xterm')
+    }
+
+    stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Clone Credential') {
+            steps {
+                dir('credential') {
+                    deleteDir()
+                    git branch: 'main',
+                        credentialsId: 'github-ssh-key-credential',
+                        url: "${env.CRED_REPO_URL}"
+                }
+            }
+        }
+
+        stage('Decrypt-AWS-Creds') {
+            steps {
+                withCredentials([string(credentialsId: 'gpg-key', variable: 'GPG_KEY')]) {
+                    sh '''
+                    echo "Decrypting AWS credentials.."
+                    mkdir -p ${HOME}/.aws
+                    gpg --quiet --batch --yes --decrypt \
+                        --passphrase="${GPG_KEY}" \
+                        --output ${HOME}/.aws/config \
+                        ./credential/aws_config.gpg
+                    '''
+                }
+            }
+        }
+
+        stage('Clone App') {
+            steps {
+                dir("${INFRA}") {
+                    deleteDir()
+                    git branch: "${env.APP_BRANCH}",
+                        credentialsId: 'github-ssh-key-credential',
+                        url: "${env.APP_REPO_URL}"
+                }
+            }
+        }
+
+        stage('Run-Terraform') {
+            steps {
+                sh '''
+                cd ${INFRA}/########/terraform/${INFRA}
+                sh terraform.sh ${ENV_NAME} ${CHOICES}
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            deleteDir()
+        }
+    }
+}

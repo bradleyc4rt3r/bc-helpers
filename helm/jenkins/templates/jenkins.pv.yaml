@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Values.nameOverride }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  capacity:
+    storage: {{ .Values.volumes.mounts.jenkins_home.persistentVolume.efs.capacity}}
+  volumeMode: {{ .Values.volumes.mounts.jenkins_home.persistentVolume.efs.volumeMode }}  
+  accessModes: {{ .Values.volumes.mounts.jenkins_home.accessModes }}
+  persistentVolumeReclaimPolicy: {{ .Values.volumes.mounts.jenkins_home.persistentVolume.efs.reclaimPolicy }}
+  storageClassName: {{ .Values.volumes.mounts.jenkins_home.storageClassName }}
+  csi:
+    driver: {{ .Values.volumes.mounts.jenkins_home.persistentVolume.efs.csi.driver }}
+    volumeHandle: {{ .Values.volumeHandle }}

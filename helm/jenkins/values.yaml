@@ -1,0 +1,186 @@
+nameOverride: jenkins
+fullnameOverride: ""
+
+securityContext:
+  runAsUser: 0 #root
+
+restartPolicy: Always
+replicaCount: 1
+strategy:
+ type: RollingUpdate
+ rollingUpdate:
+   maxSurge: 1
+   maxUnavailable: 0
+
+terminationGracePeriodSeconds: 30
+
+image:
+  pullPolicy: Always
+  pullSecrets: ""
+  # tag: "latest"
+
+ports:
+  http: 
+    port: "8080"
+    name: jenkins-http
+    protocol: "TCP"
+    nodePort: "30001"
+    typeNp: NodePort
+    typeLb: LoadBalancer
+    typeCip: ClusterIP
+    webPort: 80
+  jnlp:
+    port: "50000"
+    name: jenkins-jnlp
+    protocol: "TCP"
+    type: ClusterIP
+
+resources:
+  cpu:
+    limits: 500m
+    requests: 200m
+  memory:
+    limits: 1024Mi
+    requests: 512Mi
+
+# args: ["--prefix=/jenkins"]
+
+env:
+  javaOpts: "-Xmx2048m \
+             -Dhudson.slaves.NodeProvisioner.MARGIN=50 \
+             -Dhudson.slaves.NodeProvisioner.MARGIN0=0.85"
+
+volumes:
+  mounts:
+    aws:
+      credentials:
+        name: aws-credentials
+        mountPath: /root/.aws/credentials
+        subPath: credentials
+        mode: 0600
+      config:
+        name: aws-config
+        mountPath: /root/.aws/config
+        subPath: config
+        mode: 0600
+    ssh:
+      config:
+        name: ssh-config 
+        mountPath: /root/.ssh/config
+        subPath: config
+        readOnly: false
+        configMap:
+          name: ssh-config
+          mode: 0600
+      keys:
+        private:
+          github:
+            name: github-ssh-key
+            mountPath: /root/.ssh/id_rsa_github 
+            subPath: id_rsa_github
+            readOnly: true
+            secret:
+              mode: 0600
+              type: Opaque
+          gitlab:
+            name: gitlab-ssh-key
+            mountPath: /root/.ssh/id_rsa_gitlab
+            subPath: id_rsa_gitlab
+            readOnly: true
+            secret:
+              mode: 0600
+              type: Opaque
+    jenkins_home:
+      storageClassName: efs-sc
+      accessModes:
+      - ReadWriteMany
+      path: /var/jenkins_home
+      persistentVolumeClaim:
+        efs:
+          name: jenkins-claim
+          resources:
+            requests:
+              storage: "5Gi"
+      persistentVolume:
+        efs:
+          name: efs-pv
+          capacity: 5Gi
+          volumeMode: Filesystem
+          reclaimPolicy: Retain
+          csi:
+            driver: efs.csi.aws.com
+            #volumeHandle: #passed via command line
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 50
+  targetCPUUtilizationPercentage: 50
+  # targetMemoryUtilizationPercentage: 60
+
+ingress:
+  # enabled: false
+  annotations:
+    ingressClass: "alb"
+    alb:
+      healthCheckPath: "/login"
+      scheme: internal
+      listenPorts: '[{"HTTP": 443}]'
+      targetType: instance
+      unhealthyThresholdCount: "3"
+      # defaultRule: >
+      #   {"type":"fixed-response","fixedResponseConfig":{"contentType":"text/plain","statusCode":"404","messageBody":"Not Found"}}
+      # jenkinsRule: >
+      #   {"type":"forward","forwardConfig":{"targetGroups":[{"serviceName":"jenkins","servicePort":"8080"}]}}
+  rules:
+    http:
+      paths:
+        jenkins:
+          path: "/*"
+          backend:
+            serviceName: "jenkins"
+            servicePort: "8080"
+
+
+clusterRole:
+  rules:
+    - apiGroups: ["", "rbac.authorization.k8s.io"]
+      resources: ["pods"]
+      verbs: ["create","delete","get","list","patch","update","watch"]
+    - apiGroups: [""]
+      resources: ["", "rbac.authorization.k8s.io"]
+      verbs: ["create","delete","get","list","patch","update","watch"]
+    - apiGroups: ["", "rbac.authorization.k8s.io"]
+      resources: ["pods/log"]
+      verbs: ["get","list","watch"]
+    - apiGroups: ["", "rbac.authorization.k8s.io"]
+      resources: ["secrets"]
+      verbs: ["create","delete","get","list","patch","update"]
+    - apiGroups: ["", "rbac.authorization.k8s.io"]
+      resources: ["configmaps"]
+      verbs: ["create","delete","get","list","patch","update"]
+    - apiGroups: ["", "apps", "rbac.authorization.k8s.io"]
+      resources: ["deployments"]
+      verbs: ["create","delete","get","list","patch","update"]
+    - apiGroups: ["", "rbac.authorization.k8s.io"]
+      resources: ["services"]
+      verbs: ["create","delete","get","list","patch","update"]
+    - apiGroups: ["", "rbac.authorization.k8s.io"]
+      resources: ["ingresses"]
+      verbs: ["create","delete","get","list","patch","update"]
+    - apiGroups: ["", "rbac.authorization.k8s.io"]
+      resources: ["clusterroles"]
+      verbs: ["create","delete","get","list","patch","update"]
+    - apiGroups: ["", "rbac.authorization.k8s.io"]
+      resources: ["serviceaccounts"]
+      verbs: ["create","delete","get","list","patch","update"]
+    - apiGroups: ["", "rbac.authorization.k8s.io"]
+      resources: ["clusterrolebindings"]
+      verbs: ["create","delete","get","list","patch","update"]
+
+rbac:
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+  subjects:
+    kind: ServiceAccount 
+

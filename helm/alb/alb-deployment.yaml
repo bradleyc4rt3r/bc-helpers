@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: alb-ingress-controller
+  name: alb-ingress-controller
+  namespace: jenkins
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alb-ingress-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: alb-ingress-controller
+    spec:
+      containers:
+        - name: alb-ingress-controller
+          args:
+            # REQUIRED #
+            - --cluster-name=################
+            - --ingress-class=alb
+            - --aws-region=us-east-1
+
+          env:
+          image: amazon/aws-alb-ingress-controller:v1.1.9
+      serviceAccountName: alb-ingress-controller
+      #v1.1.9

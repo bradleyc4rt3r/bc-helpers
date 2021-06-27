@@ -1,0 +1,36 @@
+# Creates a PR for any particular branch. 
+# Useful if you want to use the command line without the 'hub' tool.
+name: Create PR for branch
+
+on:
+  #When triggered by HTTP POST request containing Auth Header and JSON payload containing branch ref
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: "Create PR for Branch"
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository to the GitHub Actions runner
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: jenkins-config-exporter
+      
+      # Checkout the #####-credentials repository to the Git runner
+      - name: Checkout credentials
+        uses: actions/checkout@v2
+        with:
+          repository: deliveryblueprints/#####-credentials
+          path: creds
+          ref: main
+          ssh-key: ${{ secrets.GH_SSH }}
+          ssh-strict: false
+
+      - name: Create PR for branch
+        run: hub pull-request -m "Jenkins Weekly Config PR" -b develop -h jenkins-config-exporter
+        env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+          GITHUB_TOKEN: ${{ secrets.PAT_ACCESS_TOKEN }}
+        
