@@ -1,12 +1,12 @@
 # ### Common variables
 region      = "us-east-1" /* AWS region to deploy  */
 environment = "dev" /* Specify the environment as 3 letter code - dev/stg/prd/tst/emg */
-project     = "devops" /* Project name for which infra is built */ #
+project     = "" /* Project name for which infra is built */ #
 
 # Assume Role Variables
-account_id  = "788814869451"
-assume_role = "devops-dev-account-admin-access-role"
-external_id = "ARDEMeDFmluWn"
+account_id  = ""
+assume_role = "
+external_id = ""
 
 #ALB Vars
 alb_health_check_path  = "/"
@@ -27,4 +27,4 @@ wireguard_vpc_cidr_prd = "10.2.0.0/16"
 jenkins_vpc_cidr = "10.21.0.0/16" 
 
 # ACM Variables
-domain_name  = "ops.sasyadev.com"
+domain_name  = ""
